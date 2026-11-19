@@ -2,6 +2,15 @@
 
 Automated provisioning and baseline configuration scripts for fresh Proxmox LXC containers (Debian / Ubuntu). Designed to eliminate repetitive post-creation setup tasks and standardize SSH access, core utilities, and optional services.
 
+## Pre-Flight: SSH Key Setup (Before Creating the LXC)
+
+Proxmox VE natively injects your public SSH key into `/root/.ssh/authorized_keys` (`700`/`600` permissions) when pasted into the **SSH public key(s)** field during container creation.
+
+### Windows (PowerShell)
+1. **Generate an Ed25519 key pair** (skip if `~\.ssh\id_ed25519.pub` already exists):
+   ```powershell
+   ssh-keygen -t ed25519 -C "kilhi-workstation"
+   
 ## 🚀 Quick Start (BLUF)
 
 ⚡ **Run this command as `root` inside a fresh LXC console** (uses `wget`, which comes pre-installed on minimal Debian/Ubuntu LXC templates):
