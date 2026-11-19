@@ -1,8 +1,8 @@
 🛠️ Homelab Scripts
-Automated provisioning and baseline configuration scripts for fresh Proxmox LXC containers (Debian / Ubuntu). Eliminates repetitive post-creation setup tasks and standardizes SSH hardening, core utilities, and optional services.
+Automated provisioning and baseline configuration scripts for fresh Proxmox LXC containers (Debian / Ubuntu). Eliminates repetitive post-creation setup tasks and standardizes SSH configuration, core utilities, and optional services.
 ---
-🔑 Pre-Flight: SSH Key Setup (Before Creating the LXC)
-Proxmox VE natively injects your public SSH key into `/root/.ssh/authorized_keys` (`700`/`600` permissions) when pasted into the SSH public key(s) field during container creation.
+🔑 Pre-Flight: SSH Key Setup (Optional)
+If you also want key-based SSH access in addition to root password login, Proxmox VE natively injects your public SSH key into `/root/.ssh/authorized_keys` (`700`/`600` permissions) when pasted into the SSH public key(s) field during container creation.
 1. Grab Your Public Key
 Windows (PowerShell)
 ```powershell
@@ -20,8 +20,8 @@ cat ~/.ssh/id_ed25519.pub
 Paste your public key(s) into the SSH public key(s) box on the General tab during LXC creation (one key per line if adding both workstation and MacBook keys).
 Boot the container and SSH directly in:
 ```bash
-   ssh root@<lxc-ip>
-   ```
+ssh root@<lxc-ip>
+```
 ---
 🚀 Quick Start
 Run as `root` inside the new LXC (uses `wget`, which comes pre-installed on minimal Debian/Ubuntu LXC templates):
@@ -36,35 +36,44 @@ bash -c "$(wget -qO- "https://raw.githubusercontent.com/gunnhil25/homelab-script
 📋 What `lxc-init.sh` Does
 ⚙️ Phase 1: Automatic Baseline Setup (Unattended)
 📦 System Update & Upgrade
-Refreshes package indexes and upgrades pre-installed packages non-interactively:
+Refreshes package indexes and upgrades pre-installed packages non-interactively without prompting on modified config files:
 ```bash
-  export DEBIAN_FRONTEND=noninteractive
-  apt-get update && apt-get upgrade -y
-  ```
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
+```
 🧰 Core Baseline Packages
 Installs essential CLI tools, TLS certificates, `whiptail` for dialog menus, and OpenSSH:
 ```bash
-  apt-get install -y sudo curl wget git htop net-tools ca-certificates gnupg whiptail openssh-server
-  ```
-🔒 SSH Daemon Hardening
-Writes a priority drop-in config (`/etc/ssh/sshd_config.d/00-lxc-hardening.conf`) to enforce key-only root login using the key pre-loaded by Proxmox:
+apt-get install -y ca-certificates curl wget git gnupg sudo htop net-tools whiptail openssh-server
+```
+🔓 SSH Daemon Configuration
+Writes a priority drop-in config (`/etc/ssh/sshd_config.d/00-lxc-ssh.conf`) to allow root login with either a password or an SSH key (overriding Debian/Ubuntu and cloud-init defaults):
 ```bash
-  cat << 'EOF' > /etc/ssh/sshd_config.d/00-lxc-hardening.conf
-  PermitRootLogin prohibit-password
-  PubkeyAuthentication yes
-  PasswordAuthentication no
-  EOF
+mkdir -p /etc/ssh/sshd_config.d /run/sshd
+rm -f /etc/ssh/sshd_config.d/00-lxc-hardening.conf
+cat << 'EOF' > /etc/ssh/sshd_config.d/00-lxc-ssh.conf
+PermitRootLogin yes
+PubkeyAuthentication yes
+PasswordAuthentication yes
+EOF
 
-  sshd -t && systemctl enable --now ssh && systemctl reload ssh
-  ```
+sshd -t
+systemctl enable --now ssh
+systemctl restart ssh
+```
 ---
 🎛️ Phase 2: Optional Packages (Interactive `whiptail` Menu)
 Use Space to toggle selections and Enter to confirm:
-🐳 Docker (`DOCKER`) — Installs Docker Engine and the Compose plugin (`get.docker.com`) and enables the service.
-> ⚠️ **Proxmox Prerequisite:** Enable **Nesting** under **Options > Features** in Proxmox before running Docker inside an unprivileged LXC.
-🌐 Tailscale (`TAILSCALE`) — Installs the Tailscale mesh VPN client (`tailscale.com/install.sh`).
-📊 Prometheus Node Exporter (`NODE_EXPORTER`) — Installs and enables `prometheus-node-exporter` for host/container metrics.
-💻 Extra CLI Utilities (`EXTRA_CLI`) — Installs `nmap`, `jq`, `tmux`, and `ncdu`.
+- 🐳 Docker (`docker`) — Installs Docker Engine and the Compose plugin (`get.docker.com`) and enables the service.
+  > ⚠️ **Proxmox Prerequisite:** Enable **Nesting** under **Options > Features** in Proxmox before running Docker inside an unprivileged LXC.
+- 🌐 Tailscale (`tailscale`) — Installs the Tailscale mesh VPN client (`tailscale.com/install.sh`).
+  > ⚠️ **Proxmox Prerequisite:** Unprivileged LXCs require `/dev/net/tun` passthrough in the container `.conf` (or `--tun=userspace-networking`) for Tailscale.
+- 📊 Prometheus Node Exporter (`node_exporter`) — Installs and enables `prometheus-node-exporter` for host/container metrics.
+- 🔍 `nmap` — Network discovery and port scanner.
+- 🧩 `jq` — Lightweight command-line JSON processor.
+- 🖥️ `tmux` — Terminal multiplexer.
+- 💾 `ncdu` — NCurses disk usage analyzer.
 ---
 🧹 Phase 3: Cleanup
 Removes unused dependencies and cached `.deb` archives to minimize container disk usage:
