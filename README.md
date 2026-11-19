@@ -1,16 +1,16 @@
-# Homelab Scripts
+# 🛠️ Homelab Scripts
 
 Automated provisioning and baseline configuration scripts for fresh Proxmox LXC containers (Debian / Ubuntu). Designed to eliminate repetitive post-creation setup tasks and standardize SSH access, core utilities, and optional services.
 
-## Quick Start (BLUF)
+## 🚀 Quick Start (BLUF)
 
-Run the following command as `root` inside a fresh LXC console (uses `wget`, which is pre-installed on minimal Debian/Ubuntu LXC templates):
+⚡ **Run this command as `root` inside a fresh LXC console** (uses `wget`, which comes pre-installed on minimal Debian/Ubuntu LXC templates):
 
 ```bash
 bash -c "$(wget -qO- [https://raw.githubusercontent.com/gunnhil25/homelab-scripts/main/lxc-init.sh](https://raw.githubusercontent.com/gunnhil25/homelab-scripts/main/lxc-init.sh))"
 ```
 
-*(Optional)* Append a timestamp query parameter to bypass GitHub's 5-minute raw CDN cache immediately after pushing script updates:
+🔄 **Bypass GitHub CDN Cache** *(use immediately after pushing script updates to skip the 5-minute cache)*:
 
 ```bash
 bash -c "$(wget -qO- "[https://raw.githubusercontent.com/gunnhil25/homelab-scripts/main/lxc-init.sh?t=$(date](https://raw.githubusercontent.com/gunnhil25/homelab-scripts/main/lxc-init.sh?t=$(date) +%s)")"
@@ -18,26 +18,26 @@ bash -c "$(wget -qO- "[https://raw.githubusercontent.com/gunnhil25/homelab-scrip
 
 ---
 
-## What `lxc-init.sh` Does
+## 📋 What `lxc-init.sh` Does
 
-### Phase 1: Automatic Baseline Setup (Runs Unattended)
+### ⚙️ Phase 1: Automatic Baseline Setup (Runs Unattended)
 
 Before displaying the interactive menu, the script automatically updates the container and configures core packages and SSH access:
 
-* **System Update & Upgrade**
+* **📦 System Update & Upgrade**
   Refreshes package lists and upgrades all pre-installed packages non-interactively:
   ```bash
   export DEBIAN_FRONTEND=noninteractive
   apt-get update && apt-get upgrade -y
   ```
 
-* **Core Baseline Packages**
+* **🧰 Core Baseline Packages**
   Installs essential CLI tools, certificate authorities, terminal dialog UI (`whiptail`), and the OpenSSH server:
   ```bash
   apt-get install -y sudo curl wget git htop net-tools ca-certificates gnupg whiptail openssh-server
   ```
 
-* **SSH Key Provisioning & Hardening**
+* **🔑 SSH Key Provisioning & Hardening**
   Imports public keys from GitHub (`gunnhil25`), enforces strict file permissions, disables password logins, and starts the SSH daemon:
   ```bash
   mkdir -p /root/.ssh && chmod 700 /root/.ssh
@@ -56,31 +56,43 @@ Before displaying the interactive menu, the script automatically updates the con
 
 ---
 
-### Phase 2: Optional Packages (Interactive `whiptail` Menu)
+### 🎛️ Phase 2: Optional Packages (Interactive `whiptail` Menu)
 
 After Phase 1 completes, an interactive checklist appears. Use **Space** to toggle selections and **Enter** to confirm:
 
-* **Docker (`DOCKER`)**
-  Installs Docker Engine and the Docker Compose plugin via the official convenience script and enables the service. *(Prerequisite: Enable **Nesting** under **Options > Features** in Proxmox before running Docker inside an unprivileged LXC).*
+* **🐳 Docker (`DOCKER`)**
+  Installs Docker Engine and the Docker Compose plugin via the official convenience script and enables the service.
+  > ⚠️ **Proxmox Prerequisite:** Enable **Nesting** under **Options > Features** in Proxmox before running Docker inside an unprivileged LXC.
   ```bash
   curl -fsSL [https://get.docker.com](https://get.docker.com) | sh
   systemctl enable --now docker
   ```
 
-* **Tailscale (`TAILSCALE`)**
+* **🌐 Tailscale (`TAILSCALE`)**
   Installs the Tailscale mesh VPN client via the official installer script.
   ```bash
   curl -fsSL [https://tailscale.com/install.sh](https://tailscale.com/install.sh) | sh
   ```
 
-* **Prometheus Node Exporter (`NODE_EXPORTER`)**
+* **📊 Prometheus Node Exporter (`NODE_EXPORTER`)**
   Installs and starts `prometheus-node-exporter` to expose host/container metrics for monitoring.
   ```bash
   apt-get install -y prometheus-node-exporter
   systemctl enable --now prometheus-node-exporter
   ```
 
-* **Extra CLI Utilities (`EXTRA_CLI`)**
+* **💻 Extra CLI Utilities (`EXTRA_CLI`)**
   Installs additional network diagnostic, JSON parsing, terminal multiplexing, and disk usage tools (`nmap`, `jq`, `tmux`, `ncdu`).
   ```bash
-  apt-get install -y
+  apt-get install -y nmap jq tmux ncdu
+  ```
+
+---
+
+### 🧹 Phase 3: Cleanup
+
+Once selected packages finish installing, unused dependencies and cached `.deb` archives are removed to keep the container footprint small:
+
+```bash
+apt-get autoremove -y && apt-get clean
+```
